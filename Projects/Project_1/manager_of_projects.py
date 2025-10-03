@@ -60,7 +60,15 @@ def get_all_notes():
             return [line for line in f if line.strip()]
     except FileNotFoundError:
         return []
-
+def delete2():
+    with open('db.txt') as f:
+        s = f.read()
+        print("Напишите слово, чтобы удалить")
+        k = input()
+        dc = s.replace(k ,"")
+        with open('db.txt', 'w', encoding='utf-8') as f:
+            f.write(dc)
+        print(f"Удалил: '{dc}' из '{s}'")
 def close():
     print("Пока! До новых заметок!")
     exit()
@@ -75,6 +83,7 @@ def interface():
 3 - найти заметку
 4 - закрыть программу
 5 - показать все заметки
+7 - удалить определенное слово
 Введи номер выбранной команды:''')
         answer = input().strip()
         match answer:
@@ -88,8 +97,10 @@ def interface():
                 close()
             case "5":
                 show()
+            case "7":
+                delete2()
             case _:
                 print("Безмозглое подобие человека! Введи число от 1 до 5.")
 
 if __name__ == "__main__":
-    interface()
+    inter
