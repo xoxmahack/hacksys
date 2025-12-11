@@ -1,0 +1,32 @@
+using System
+public class Student
+{
+  public string name{get;set;}
+  public int age{get; set;}
+  public string group{get;set;}
+  public Student(string name, int age, string group)
+  {
+    name = this.name
+    age = this.age
+    group = this.group
+  }
+  public void Learn()
+  {
+    Console.Writeline($"Студент по имени{name}, которомму {age}, учится")
+  }
+  
+}
+public class Magistr:Student
+{
+  public void DefendDyplome()
+  {
+    Console.Writeline($" Магистр по имени{name}, которомму {age}, защищает диплом")
+  }
+}
+public class Bakalavr:Student
+{
+  public void PassExams()
+  {
+    Console.Writeline($" Бакалавр по имени{name}, которомму {age}, сдает экзамены")
+  }
+}
