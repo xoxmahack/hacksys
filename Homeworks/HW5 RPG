@@ -1,0 +1,99 @@
+
+public interface IDamageable
+{
+    void TakeDamage(int damage);
+}
+
+
+public abstract class Character : IDamageable
+{
+    private string name;
+    private int health;
+
+    public string Name => name;
+    public int Health => health;
+
+
+    public Character(string name, int health)
+    {
+        this.name = name;
+        this.health = health;
+    }
+
+    public void Move()
+    {
+        Console.WriteLine($"{name} moves forward.");
+    }
+
+    public abstract void Attack();
+
+    public virtual void TakeDamage(int damage)
+    {
+        health -= damage;
+        if (health < 0) health = 0;
+        Console.WriteLine($"{name} takes {damage} damage. Health: {health}");
+    }
+
+
+    protected void IncreaseHealth(int amount)
+    {
+        health += amount;
+    }
+}
+
+
+public class Warrior : Character
+{
+    public Warrior(string name, int health) : base(name, health) { }
+
+    public override void Attack()
+    {
+        Console.WriteLine($"{Name} swings a mighty sword!");
+    }
+}
+
+public class Mage : Character
+{
+    public Mage(string name, int health) : base(name, health) { }
+
+    public override void Attack()
+    {
+        Console.WriteLine($"{Name} casts a fireball!");
+    }
+}
+
+
+public interface IHealable
+{
+    void Heal(int amount);
+}
+
+public class Priest : Character, IHealable
+{
+    public Priest(string name, int health) : base(name, health) { }
+
+    public override void Attack()
+    {
+        Console.WriteLine($"{Name} smites the enemy with holy light!");
+    }
+
+    public void Heal(int amount)
+    {
+        IncreaseHealth(amount);
+        Console.WriteLine($"{Name} heals for {amount}. Health: {Health}");
+    }
+}
+
+
+
+Character[] characters = new Character[3];
+characters[0] = new Warrior("Aragorn", 100);
+characters[1] = new Mage("Gandalf", 80);
+characters[2] = new Priest("Elrond", 90);
+
+foreach (Character c in characters)
+{
+    c.Attack();
+//1. Потому что он описывает общие черты всех персонажей, но не может существовать сам по себе — например, нет смысла в "просто персонаже" без конкретной роли. Метод Attack() зависит от типа персонажа, поэтому его нельзя реализовать в базовом классе — он обязан быть переопределён в подклассах. Абстрактный класс запрещает создание его экземпляров и обеспечивает обязательную реализацию специфичного поведения.
+//2. Потому что C# использует динамическое связывание (позднее связывание) для виртуальных и абстрактных методов. Во время выполнения система определяет реальный тип объекта (например, Warrior или Mage) и вызывает соответствующую реализацию Attack(). Это и есть полиморфизм — единый интерфейс, множество реализаций.
+//3.Интерфейс позволяет выделить дополнительное поведение ("уметь лечиться"), которое может быть у некоторых, но не всех персонажей. Он даёт гибкость: можно писать код, работающий со всеми целителями, не зная их конкретного типа. Это улучшает расширяемость и повторное использование кода, не привязываясь к иерархии наследования.
