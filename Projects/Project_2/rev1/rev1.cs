@@ -1,36 +1,44 @@
 using System;
+using QuestEngine.Core;
+using QuestEngine.Commands;
+using QuestEngine.Quests;
+using QuestEngine.Conditions;
+using QuestEngine.Effects;
+using QuestEngine.Objects;
+using QuestEngine.Events;
+using QuestEngine.Interfaces;
 
+// ============================================
+// ИНТЕРФЕЙСЫ
+// ============================================
 namespace QuestEngine.Interfaces
 {
-    // команда игрока go, look итд
     public interface ICommand
     {
         string Name { get; }
         string Description { get; }
-        void Execute(GameContext context);
+        void Execute(Core.GameContext context);
     }
-    // проверка условия
+
     public interface ICondition
     {
         string Description { get; }
-        bool Check(GameState state);
+        bool Check(Core.GameState state);
     }
 
-    // эффект
     public interface IEffect
     {
         string Description { get; }
-        void Apply(GameState state);
+        void Apply(Core.GameState state);
     }
 
-    // взаимодействие
     public interface IInteractable
     {
         string Id { get; }
         string Name { get; }
         string Description { get; }
-        bool CanInteract(GameState state);
-        void Interact(GameState state);
+        bool CanInteract(Core.GameState state);
+        void Interact(Core.GameState state);
     }
 
     public interface IGameEvent
@@ -38,8 +46,8 @@ namespace QuestEngine.Interfaces
         string Description { get; }
         bool IsOneTime { get; }
         bool IsTriggered { get; }
-        bool ShouldTrigger(GameState state);
-        void Trigger(GameState state);
+        bool ShouldTrigger(Core.GameState state);
+        void Trigger(Core.GameState state);
     }
 
     public interface IQuest
@@ -48,61 +56,22 @@ namespace QuestEngine.Interfaces
         string Title { get; }
         string Description { get; }
         bool IsCompleted { get; }
-        void Update(GameState state);
+        void Update(Core.GameState state);
     }
 }
 
-public class GameContext
-{
-    public GameState State { get; }   //  состояние игры 
-    public Game Game { get; }         //  главная игра
-    public string[] Args { get; }     //  аргументы команды 
-}
-
-public class GameState
-{
-    // Здоровье
-    public int Health { get; private set; }
-    public int MaxHealth { get; } = 100;
-    
-    // Инвентарь
-    public List<string> Inventory { get; } = new List<string>();
-    
-    //  включённые события
-    public Dictionary<string, bool> Flags { get; } = new Dictionary<string, bool>();
-    
-    // Журнал событий (что происходило в игре)
-    public List<string> Log { get; } = new List<string>();
-    
-    // Счётчик ходов
-    public int Turn { get; private set; }
-    
-    // Где сейчас игрок
-    public Location CurrentLocation { get; set; }
-    
-    // Жив ли игрок
-    public bool IsAlive => Health > 0;
-    public bool IsGameOver { get; private set; }
-} 
-using System;
-
+// ============================================
+// ЯДРО ИГРЫ (Core)
+// ============================================
 namespace QuestEngine.Core
 {
-    // Хранит всё состояние игры
     public class GameState
     {
         public int Health { get; private set; }
         public int MaxHealth { get; } = 100;
-        
-        public System.Collections.Generic.List<string> Inventory { get; } 
-            = new System.Collections.Generic.List<string>();
-        
-        public System.Collections.Generic.Dictionary<string, bool> Flags { get; } 
-            = new System.Collections.Generic.Dictionary<string, bool>();
-        
-        public System.Collections.Generic.List<string> Log { get; } 
-            = new System.Collections.Generic.List<string>();
-        
+        public System.Collections.Generic.List<string> Inventory { get; } = new System.Collections.Generic.List<string>();
+        public System.Collections.Generic.Dictionary<string, bool> Flags { get; } = new System.Collections.Generic.Dictionary<string, bool>();
+        public System.Collections.Generic.List<string> Log { get; } = new System.Collections.Generic.List<string>();
         public int Turn { get; private set; }
         public Location CurrentLocation { get; set; }
         public bool IsAlive => Health > 0;
@@ -115,7 +84,6 @@ namespace QuestEngine.Core
             IsGameOver = false;
         }
 
-        // Предметы
         public void AddItem(string id)
         {
             if (!Inventory.Contains(id))
@@ -132,7 +100,6 @@ namespace QuestEngine.Core
             return Inventory.Contains(id);
         }
 
-        // Флаги
         public void SetFlag(string key, bool value)
         {
             Flags[key] = value;
@@ -145,7 +112,6 @@ namespace QuestEngine.Core
             return false;
         }
 
-        // Здоровье
         public void TakeDamage(int amount)
         {
             Health = Health - amount;
@@ -162,26 +128,22 @@ namespace QuestEngine.Core
                 Health = MaxHealth;
         }
 
-        // Журнал
         public void LogMessage(string message)
         {
             Log.Add("[Ход " + Turn + "] " + message);
         }
 
-        // Ход
         public void NextTurn()
         {
             Turn = Turn + 1;
         }
 
-        // Конец игры
         public void EndGame()
         {
             IsGameOver = true;
         }
     }
 
-    // Контекст для команд
     public class GameContext
     {
         public GameState State { get; }
@@ -196,21 +158,14 @@ namespace QuestEngine.Core
         }
     }
 
-    // Локация
     public class Location
     {
         public string Id { get; }
         public string Name { get; }
         public string Description { get; }
-        
-        public System.Collections.Generic.Dictionary<string, Location> Exits { get; }
-            = new System.Collections.Generic.Dictionary<string, Location>();
-        
-        public System.Collections.Generic.List<Interfaces.IInteractable> Objects { get; }
-            = new System.Collections.Generic.List<Interfaces.IInteractable>();
-        
-        public System.Collections.Generic.List<Interfaces.IGameEvent> Events { get; }
-            = new System.Collections.Generic.List<Interfaces.IGameEvent>();
+        public System.Collections.Generic.Dictionary<string, Location> Exits { get; } = new System.Collections.Generic.Dictionary<string, Location>();
+        public System.Collections.Generic.List<Interfaces.IInteractable> Objects { get; } = new System.Collections.Generic.List<Interfaces.IInteractable>();
+        public System.Collections.Generic.List<Interfaces.IGameEvent> Events { get; } = new System.Collections.Generic.List<Interfaces.IGameEvent>();
 
         public Location(string id, string name, string description)
         {
@@ -238,14 +193,13 @@ namespace QuestEngine.Core
         {
             for (int i = 0; i < Objects.Count; i++)
             {
-                if (Objects[i].Id == id)
+                if (Objects[i].Id == id || Objects[i].Name == id)
                     return Objects[i];
             }
             return null;
         }
     }
 
-    // Главный класс игры
     public class Game
     {
         private GameState _state;
@@ -282,7 +236,7 @@ namespace QuestEngine.Core
                 throw new InvalidOperationException("Нет стартовой локации");
             }
             _state.CurrentLocation = _startLocation;
-            _state.LogMessage("Игра началась!");
+            _state.LogMessage("Игра началась! Добро пожаловать в Сектор-7.");
         }
 
         public void ProcessCommand(string input)
@@ -292,8 +246,6 @@ namespace QuestEngine.Core
                 return;
 
             string cmdName = parts[0].ToLower();
-            
-            // Копируем аргументы
             string[] args = new string[parts.Length - 1];
             for (int i = 1; i < parts.Length; i++)
             {
@@ -306,16 +258,13 @@ namespace QuestEngine.Core
                 GameContext context = new GameContext(this, _state, args);
                 command.Execute(context);
 
-                // Обновляем квесты
                 for (int i = 0; i < _quests.Count; i++)
                 {
                     _quests[i].Update(_state);
                 }
 
-                // Следующий ход
                 _state.NextTurn();
 
-                // Проверяем события
                 if (_state.CurrentLocation != null)
                 {
                     for (int i = 0; i < _state.CurrentLocation.Events.Count; i++)
@@ -340,11 +289,12 @@ namespace QuestEngine.Core
         public GameState State => _state;
     }
 }
-using System;
 
+// ============================================
+// АБСТРАКТНЫЕ КЛАССЫ (Base)
+// ============================================
 namespace QuestEngine.Base
 {
-    // Базовая команда
     public abstract class CommandBase : Interfaces.ICommand
     {
         public abstract string Name { get; }
@@ -352,21 +302,18 @@ namespace QuestEngine.Base
         public abstract void Execute(Core.GameContext context);
     }
 
-    // Базовое условие
     public abstract class ConditionBase : Interfaces.ICondition
     {
         public abstract string Description { get; }
         public abstract bool Check(Core.GameState state);
     }
 
-    // Базовый эффект
     public abstract class EffectBase : Interfaces.IEffect
     {
         public abstract string Description { get; }
         public abstract void Apply(Core.GameState state);
     }
 
-    // Базовый объект
     public abstract class InteractableBase : Interfaces.IInteractable
     {
         public abstract string Id { get; }
@@ -376,7 +323,6 @@ namespace QuestEngine.Base
         public abstract void Interact(Core.GameState state);
     }
 
-    // Базовое событие
     public abstract class GameEventBase : Interfaces.IGameEvent
     {
         public abstract string Description { get; }
@@ -386,7 +332,6 @@ namespace QuestEngine.Base
         public abstract void Trigger(Core.GameState state);
     }
 
-    // Базовый квест
     public abstract class QuestBase : Interfaces.IQuest
     {
         public abstract string Id { get; }
@@ -396,15 +341,16 @@ namespace QuestEngine.Base
         public abstract void Update(Core.GameState state);
     }
 }
-using System;
 
+// ============================================
+// КОМАНДЫ
+// ============================================
 namespace QuestEngine.Commands
 {
     public class HelpCommand : Base.CommandBase
     {
         public override string Name => "help";
         public override string Description => "Показать список команд";
-
         public override void Execute(Core.GameContext context)
         {
             context.State.LogMessage("=== КОМАНДЫ ===");
@@ -421,7 +367,6 @@ namespace QuestEngine.Commands
     {
         public override string Name => "look";
         public override string Description => "Осмотреть локацию";
-
         public override void Execute(Core.GameContext context)
         {
             Core.Location loc = context.State.CurrentLocation;
@@ -430,10 +375,8 @@ namespace QuestEngine.Commands
                 context.State.LogMessage("Вы нигде.");
                 return;
             }
-
             context.State.LogMessage("=== " + loc.Name + " ===");
             context.State.LogMessage(loc.Description);
-
             if (loc.Objects.Count > 0)
             {
                 string objs = "";
@@ -444,7 +387,6 @@ namespace QuestEngine.Commands
                 }
                 context.State.LogMessage("Объекты: " + objs);
             }
-
             if (loc.Exits.Count > 0)
             {
                 string exits = "";
@@ -462,7 +404,6 @@ namespace QuestEngine.Commands
     {
         public override string Name => "go";
         public override string Description => "Перейти (go <направление>)";
-
         public override void Execute(Core.GameContext context)
         {
             if (context.Args.Length == 0)
@@ -470,10 +411,8 @@ namespace QuestEngine.Commands
                 context.State.LogMessage("Куда идти? go north, go south...");
                 return;
             }
-
             string dir = context.Args[0].ToLower();
             Core.Location loc = context.State.CurrentLocation;
-
             if (loc.Exits.ContainsKey(dir))
             {
                 context.State.CurrentLocation = loc.Exits[dir];
@@ -490,7 +429,6 @@ namespace QuestEngine.Commands
     {
         public override string Name => "interact";
         public override string Description => "Взаимодействовать (interact <id>)";
-
         public override void Execute(Core.GameContext context)
         {
             if (context.Args.Length == 0)
@@ -498,17 +436,14 @@ namespace QuestEngine.Commands
                 context.State.LogMessage("С чем взаимодействовать? interact <id>");
                 return;
             }
-
             string objId = context.Args[0];
             Core.Location loc = context.State.CurrentLocation;
             Interfaces.IInteractable obj = loc.FindObject(objId);
-
             if (obj == null)
             {
                 context.State.LogMessage("Объект не найден.");
                 return;
             }
-
             if (obj.CanInteract(context.State))
             {
                 obj.Interact(context.State);
@@ -524,7 +459,6 @@ namespace QuestEngine.Commands
     {
         public override string Name => "inv";
         public override string Description => "Показать инвентарь";
-
         public override void Execute(Core.GameContext context)
         {
             System.Collections.Generic.List<string> inv = context.State.Inventory;
@@ -549,16 +483,17 @@ namespace QuestEngine.Commands
     {
         public override string Name => "status";
         public override string Description => "Статус игрока";
-
         public override void Execute(Core.GameContext context)
         {
             context.State.LogMessage("Здоровье: " + context.State.Health + "/" + context.State.MaxHealth);
             context.State.LogMessage("Ход: " + context.State.Turn);
         }
     }
-} 
-using System;
+}
 
+// ============================================
+// УСЛОВИЯ
+// ============================================
 namespace QuestEngine.Conditions
 {
     public class HasItemCondition : Base.ConditionBase
@@ -631,9 +566,11 @@ namespace QuestEngine.Conditions
         public NotCondition(Interfaces.ICondition condition) { _condition = condition; }
         public override bool Check(Core.GameState state) { return !_condition.Check(state); }
     }
-} 
-using System;
+}
 
+// ============================================
+// ЭФФЕКТЫ
+// ============================================
 namespace QuestEngine.Effects
 {
     public class AddItemEffect : Base.EffectBase
@@ -710,9 +647,11 @@ namespace QuestEngine.Effects
             state.LogMessage("Вы перемещены в: " + _location.Name);
         }
     }
-} 
-using System;
+}
 
+// ============================================
+// ОБЪЕКТЫ
+// ============================================
 namespace QuestEngine.Objects
 {
     public class Chest : Base.InteractableBase
@@ -722,16 +661,13 @@ namespace QuestEngine.Objects
         public override string Id { get; }
         public override string Name { get; }
         public override string Description { get; }
-
         public Chest(string id, string name, string itemId)
         {
             Id = id; Name = name;
             Description = "Старый " + name + ". Внутри что-то есть.";
             _itemId = itemId;
         }
-
         public override bool CanInteract(Core.GameState state) { return !_opened; }
-
         public override void Interact(Core.GameState state)
         {
             _opened = true;
@@ -747,15 +683,12 @@ namespace QuestEngine.Objects
         public override string Id { get; }
         public override string Name { get; }
         public override string Description { get; }
-
         public Door(string id, string name, Interfaces.ICondition unlockCondition = null)
         {
             Id = id; Name = name; _unlockCondition = unlockCondition;
             Description = "Запертая " + name + ".";
         }
-
         public override bool CanInteract(Core.GameState state) { return !_isOpen; }
-
         public override void Interact(Core.GameState state)
         {
             if (_unlockCondition == null || _unlockCondition.Check(state))
@@ -776,14 +709,11 @@ namespace QuestEngine.Objects
         public override string Id { get; }
         public override string Name { get; }
         public override string Description { get; }
-
         public NPC(string id, string name, string description, System.Collections.Generic.List<Interfaces.IEffect> effects)
         {
             Id = id; Name = name; Description = description; _effects = effects;
         }
-
         public override bool CanInteract(Core.GameState state) { return true; }
-
         public override void Interact(Core.GameState state)
         {
             for (int i = 0; i < _effects.Count; i++) { _effects[i].Apply(state); }
@@ -797,11 +727,8 @@ namespace QuestEngine.Objects
         public override string Id { get; }
         public override string Name => "Ловушка";
         public override string Description => "Подозрительный механизм.";
-
         public Trap(string id, int damage) { Id = id; _damage = damage; }
-
         public override bool CanInteract(Core.GameState state) { return !_triggered; }
-
         public override void Interact(Core.GameState state)
         {
             _triggered = true;
@@ -809,9 +736,11 @@ namespace QuestEngine.Objects
             state.LogMessage("Ловушка! Урон: " + _damage);
         }
     }
-} 
-using System;
+}
 
+// ============================================
+// СОБЫТИЯ
+// ============================================
 namespace QuestEngine.Events
 {
     public class OnEnterLocationEvent : Base.GameEventBase
@@ -820,19 +749,16 @@ namespace QuestEngine.Events
         private System.Collections.Generic.List<Interfaces.IEffect> _effects;
         public override string Description { get; }
         public override bool IsOneTime { get; }
-
-        public OnEnterLocationEvent(string description, Interfaces.ICondition condition, 
+        public OnEnterLocationEvent(string description, Interfaces.ICondition condition,
             System.Collections.Generic.List<Interfaces.IEffect> effects, bool isOneTime = false)
         {
             Description = description; _condition = condition; _effects = effects; IsOneTime = isOneTime;
         }
-
         public override bool ShouldTrigger(Core.GameState state)
         {
             if (IsOneTime && IsTriggered) return false;
             return _condition.Check(state);
         }
-
         public override void Trigger(Core.GameState state)
         {
             for (int i = 0; i < _effects.Count; i++) { _effects[i].Apply(state); }
@@ -847,18 +773,15 @@ namespace QuestEngine.Events
         private System.Collections.Generic.List<Interfaces.IEffect> _effects;
         public override string Description { get; }
         public override bool IsOneTime => false;
-
         public OnTurnEvent(string description, int interval, Interfaces.ICondition condition,
             System.Collections.Generic.List<Interfaces.IEffect> effects)
         {
             Description = description; _interval = interval; _condition = condition; _effects = effects;
         }
-
         public override bool ShouldTrigger(Core.GameState state)
         {
             return state.Turn % _interval == 0 && _condition.Check(state);
         }
-
         public override void Trigger(Core.GameState state)
         {
             for (int i = 0; i < _effects.Count; i++) { _effects[i].Apply(state); }
@@ -871,36 +794,34 @@ namespace QuestEngine.Events
         private System.Collections.Generic.List<Interfaces.IEffect> _effects;
         public override string Description { get; }
         public override bool IsOneTime => true;
-
         public OneTimeEvent(string description, Interfaces.ICondition condition,
             System.Collections.Generic.List<Interfaces.IEffect> effects)
         {
             Description = description; _condition = condition; _effects = effects;
         }
-
         public override bool ShouldTrigger(Core.GameState state)
         {
             if (IsTriggered) return false;
             return _condition.Check(state);
         }
-
         public override void Trigger(Core.GameState state)
         {
             for (int i = 0; i < _effects.Count; i++) { _effects[i].Apply(state); }
             IsTriggered = true;
         }
     }
-} 
-using System;
+}
 
+// ============================================
+// КВЕСТЫ
+// ============================================
 namespace QuestEngine.Quests
 {
     public class GeneratorQuest : Base.QuestBase
     {
         public override string Id => "generator";
         public override string Title => "Включить генератор";
-        public override string Description => "Найдите предохранитель и ключ, включите генератор.";
-
+        public override string Description => "Найдите предметы и включите генератор.";
         public override void Update(Core.GameState state)
         {
             if (!IsCompleted && state.GetFlag("GeneratorOn"))
@@ -916,7 +837,6 @@ namespace QuestEngine.Quests
         public override string Id => "escape";
         public override string Title => "Побег из Сектора-7";
         public override string Description => "Доберитесь до выхода.";
-
         public override void Update(Core.GameState state)
         {
             if (!IsCompleted && state.CurrentLocation != null && state.CurrentLocation.Id == "Exit")
@@ -927,33 +847,25 @@ namespace QuestEngine.Quests
             }
         }
     }
-} 
-using System;
-using QuestEngine.Core;
-using QuestEngine.Commands;
-using QuestEngine.Quests;
-using QuestEngine.Conditions;
-using QuestEngine.Effects;
-using QuestEngine.Objects;
-using QuestEngine.Events;
+}
 
+// ============================================
+// ПРОГРАММА (Main)
+// ============================================
 namespace QuestGame
 {
     class Program
     {
         static void Main(string[] args)
         {
-            // === 1. СОЗДАНИЕ ИГРЫ ===
             Game game = new Game();
 
-            // === 2. СОЗДАНИЕ ЛОКАЦИЙ ===
-            Location hall = new Location("Hall", "Холл", "Вы в главном холле комплекса. Вокруг темно и тихо.");
-            Location storage = new Location("Storage", "Склад", "Здесь хранятся припасы. Пахнет ржавчиной.");
-            Location corridor = new Location("DarkCorridor", "Тёмный коридор", "Очень темно. Что-то шуршит в углах.");
-            Location generatorRoom = new Location("GeneratorRoom", "Комната генератора", "Большой молчащий генератор.");
-            Location exit = new Location("Exit", "Выход", "Свет в конце туннеля! Свобода близко!");
+            Location hall = new Location("Hall", "Холл", "Вы в главном холле комплекса.");
+            Location storage = new Location("Storage", "Склад", "Здесь хранятся припасы.");
+            Location corridor = new Location("DarkCorridor", "Тёмный коридор", "Очень темно.");
+            Location generatorRoom = new Location("GeneratorRoom", "Комната генератора", "Генератор молчит.");
+            Location exit = new Location("Exit", "Выход", "Свобода близко!");
 
-            // === 3. СОЗДАНИЕ СВЯЗЕЙ МЕЖДУ ЛОКАЦИЯМИ ===
             hall.AddExit("north", corridor);
             hall.AddExit("east", storage);
             storage.AddExit("west", hall);
@@ -963,46 +875,32 @@ namespace QuestGame
             generatorRoom.AddExit("east", exit);
             exit.AddExit("west", generatorRoom);
 
-            // === 4. СОЗДАНИЕ ОБЪЕКТОВ ===
-            
-            // Сундук с фонарём на складе
             Chest chest1 = new Chest("chest1", "ящик", "Torch");
-            
-            // Сундук с ключ-картой в холле
             Chest chest2 = new Chest("chest2", "сейф", "Key");
-            
-            // Ловушка на складе
             Trap trap = new Trap("trap1", 20);
-            
-            // Терминал в комнате генератора
+
             System.Collections.Generic.List<IEffect> terminalEffects = new System.Collections.Generic.List<IEffect>();
             terminalEffects.Add(new SetFlagEffect("GeneratorOn", true));
-            terminalEffects.Add(new LogEffect("Генератор запущен! Питание восстановлено."));
-            terminalEffects.Add(new AddExitEffect("GeneratorRoom", "east", "Exit"));
-            NPC terminal = new NPC("terminal1", "Терминал", "Панель управления генератором.", terminalEffects);
+            terminalEffects.Add(new LogEffect("Генератор запущен!"));
+            NPC terminal = new NPC("terminal1", "Терминал", "Панель управления.", terminalEffects);
 
-            // === 5. ДОБАВЛЕНИЕ ОБЪЕКТОВ В ЛОКАЦИИ ===
             storage.AddObject(chest1);
             storage.AddObject(trap);
             hall.AddObject(chest2);
             generatorRoom.AddObject(terminal);
 
-            // === 6. СОЗДАНИЕ СОБЫТИЙ ===
-            
-            // Событие: урон в тёмном коридоре без фонаря
-            System.Collections.Generic.List<IEffect> darkCorridorEffects = new System.Collections.Generic.List<IEffect>();
-            darkCorridorEffects.Add(new DamageEffect(10));
-            darkCorridorEffects.Add(new LogEffect("В темноте вас что-то ранило! -10 HP"));
-            
+            System.Collections.Generic.List<IEffect> darkEffects = new System.Collections.Generic.List<IEffect>();
+            darkEffects.Add(new DamageEffect(10));
+            darkEffects.Add(new LogEffect("В темноте вас ранило! -10 HP"));
+
             OnEnterLocationEvent darkEvent = new OnEnterLocationEvent(
                 "Урон в темноте",
                 new NotCondition(new HasItemCondition("Torch")),
-                darkCorridorEffects,
+                darkEffects,
                 isOneTime: false
             );
             corridor.AddEvent(darkEvent);
 
-            // === 7. РЕГИСТРАЦИЯ КОМАНД ===
             game.RegisterCommand(new HelpCommand());
             game.RegisterCommand(new LookCommand());
             game.RegisterCommand(new GoCommand());
@@ -1010,55 +908,45 @@ namespace QuestGame
             game.RegisterCommand(new InventoryCommand());
             game.RegisterCommand(new StatusCommand());
 
-            // === 8. РЕГИСТРАЦИЯ КВЕСТОВ ===
             game.RegisterQuest(new GeneratorQuest());
             game.RegisterQuest(new EscapeQuest());
 
-            // === 9. УСТАНОВКА СТАРТОВОЙ ЛОКАЦИИ ===
             game.SetStartLocation(hall);
-
-            // === 10. ЗАПУСК ИГРЫ ===
             game.Start();
 
-            // === 11. ИГРОВОЙ ЦИКЛ ===
-            Console.WriteLine("========================================");
-            Console.WriteLine("   ДОБРО ПОЖАЛОВАТЬ В СЕКТОР-7!");
-            Console.WriteLine("========================================");
+            Console.WriteLine("=== ДОБРО ПОЖАЛОВАТЬ В СЕКТОР-7 ===");
             Console.WriteLine("Введите 'help' для списка команд.");
             Console.WriteLine();
+
+            int lastLogCount = 0;
 
             while (game.IsRunning)
             {
                 Console.Write("> ");
                 string input = Console.ReadLine();
-
+                
                 if (string.IsNullOrEmpty(input))
                     continue;
-
+                
                 game.ProcessCommand(input);
-
-                // Вывод последнего сообщения из журнала
+                
                 System.Collections.Generic.List<string> log = game.State.Log;
-                if (log.Count > 0)
+                for (int i = lastLogCount; i < log.Count; i++)
                 {
-                    Console.WriteLine(log[log.Count - 1]);
+                    Console.WriteLine(log[i]);
                 }
+                lastLogCount = log.Count;
             }
 
-            // === 12. КОНЕЦ ИГРЫ ===
             Console.WriteLine();
-            Console.WriteLine("========================================");
             if (game.State.Health <= 0)
             {
-                Console.WriteLine("   ВЫ ПОГИБЛИ. ИГРА ОКОНЧЕНА.");
+                Console.WriteLine("ВЫ ПОГИБЛИ.");
             }
             else
             {
-                Console.WriteLine("   ПОЗДРАВЛЯЕМ! ВЫ ПРОШЛИ ИГРУ!");
+                Console.WriteLine("ПОЗДРАВЛЯЕМ! ВЫ ПРОШЛИ ИГРУ!");
             }
-            Console.WriteLine("========================================");
-            Console.WriteLine("Всего ходов: " + game.State.Turn);
-            Console.WriteLine();
         }
     }
 }
